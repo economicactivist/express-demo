@@ -1,98 +1,41 @@
+const config = require('config')
+const courses = require('./routes/courses')
+const home = require('./routes/home')
+const debug = require('debug')('app:startup')
 const express = require('express')
-const Joi = require('joi')
+const morgan = require('morgan')
+const helmet = require('helmet')
+// const Joi = require('joi')
+const { urlencoded } = require('express')
 const app = express()
 const port = process.env.PORT || 3000
 
+app.set('view engine', 'pug')
+app.set('views', './views')
+
 
 app.use(express.json()) 
+//https://stackoverflow.com/a/67393195/9269320  (explanation of urlencoded; 
+//used for parsing body from html form elements)
+app.use(urlencoded({ extended: true }))
+//used for security
+app.use(helmet())
+app.use('/api/courses', courses)
+app.use('/',home)
 
-name_schema = Joi.object().keys({
-    name: Joi.string().min(3).required()
-})
+console.log('Application Name: ' + config.get('name'))
+console.log('Mail Server: ' + config.get('mail.host'))
+console.log('Mail Password: ' + config.get('mail.password'))
 
-
-const validate = (schema, data) => {
-
-    const result = schema.validate(data)
-    if (result.error) {
-        return result.error.details[0].message  // return the first error message
-    }
-    return null
+//export NODE_ENV=development
+if (app.get('env') === 'development') {
+    app.use(morgan('tiny'))
+    debug('Morgan enabled...') //export DEBUG=app:startup
 }
 
-
-const courses = [   // array of objects
-    { id: 1, name: 'course1' },
-    { id: 2, name: 'course2' },
-    { id: 3, name: 'course3' }
-]
-
-
-app.get('/', (req, res) => res.send('Hello World!'))
-
-app.get('/api/courses', (req, res) => {
-  res.send(courses)
-})
-
-app.get('/api/courses/:id', (req, res) => {
-  
-  const course = courses.find(c => c.id === parseInt(req.params.id))
-  if(!course) return res.status(404).send('The course with the given ID was not found')
-  res.send(course)
-
-
-})
-
-app.post('/api/courses', (req, res) => {
- 
-
-    const validationError = validate(name_schema, req.body)
-    if (validationError) {
-        res.status(400).send(validationError)
-        return
-    }  // if validation error, return 400 and send the error message
-    const course = {
-        id: courses.length + 1,
-        name: req.body.name
-    }
-
-    courses.push(course)
-    res.send(course) //so the client can get the id of the new course
-})
-
-app.put('/api/courses/:id', (req, res) => {
-    //look up the course
-    //if not existing, return 404
-    const course = courses.find(c => c.id === parseInt(req.params.id))
-    if (!course) return res.status(404).send('The course with the given ID was not found')
-
-    //validate
-    //if invalid, return 400 - bad request
-    const validationError = validate(name_schema, req.body)
-    if (validationError) {
-        res.status(400).send(validationError)
-        return
-    }
-
-    //update course
-    course.name = req.body.name
-
-    //return the updated course
-    res.send(course)
-})
-
-app.delete('/api/courses/:id', (req, res) => {
-    const course = courses.find(c => c.id === parseInt(req.params.id))
-    if (!course) return res.status(404).send('The course with the given ID was not found')
-    
-    const index = courses.indexOf(course)
-    courses.splice(index, 1)
-
-    res.send(course)
-})
-
-
-
+// if (process.env.NODE_ENV === 'production') {
+//     app.use(express.static('client/build'))
+// }
 
 
 
